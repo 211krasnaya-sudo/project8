@@ -25,7 +25,7 @@ dev = [
 ]
 
 [[tool.poetry.packages]]
-include = "models"
+include = "models.py"
 from = "src"
 
 [tool.pytest.ini_options]

@@ -1,5 +1,7 @@
 import pytest
-from catalog.models import Product, Category
+
+from models import Product, Category
+
 
 
 def test_product_initialization():
