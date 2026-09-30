@@ -13,13 +13,13 @@ class Product:
     ) -> None:
         self.name = name
         self.description = description
-        self._price = price  # приватный атрибут цены
+        self.__price = price  # приватный атрибут цены
         self.quantity = quantity
 
     @property
     def price(self) -> float:
         """Геттер цены."""
-        return self._price
+        return self.__price
 
     @price.setter
     def price(self, new_price: float) -> None:
@@ -28,11 +28,11 @@ class Product:
             print("Цена не должна быть нулевая или отрицательная")
             return
         # Доп. задание: подтверждение при понижении цены
-        if new_price < self._price:
-            answer = input(f"Цена снижается с {self._price} до {new_price}. Подтвердите (y/n): ")
+        if new_price < self.__price:
+            answer = input(f"Цена снижается с {self.__price} до {new_price}. Подтвердите (y/n): ")
             if answer.lower() != "y":
                 return
-        self._price = new_price
+        self.__price = new_price
 
     @classmethod
     def new_product(
