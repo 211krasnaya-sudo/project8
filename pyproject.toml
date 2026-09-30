@@ -7,6 +7,7 @@ authors = [
 ]
 requires-python = ">=3.14"
 dependencies = [
+    "pytest-cov (>=7.1.0,<8.0.0)"
 ]
 
 
@@ -16,5 +17,16 @@ build-backend = "poetry.core.masonry.api"
 
 [dependency-groups]
 dev = [
-    "mypy (>=2.3.0,<3.0.0)"
+    "mypy (>=2.3.0,<3.0.0)",
+    "flake8 (>=7.4.1,<8.0.0)",
+    "black (>=26.5.1,<27.0.0)",
+    "isort (>=9.0.1,<10.0.0)",
+    "pytest (>=9.1.1,<10.0.0)"
 ]
+
+[[tool.poetry.packages]]
+include = "models.py"
+from = "src"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
