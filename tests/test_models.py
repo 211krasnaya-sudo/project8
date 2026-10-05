@@ -1,3 +1,4 @@
+import pytest
 from models import Product, Category
 
 
@@ -172,3 +173,61 @@ def test_price_decrease_cancelled(monkeypatch):
     monkeypatch.setattr("builtins.input", lambda _: "n")
     product.price = 80
     assert product.price == 100
+
+# --- Задание: __str__ для Product ---
+
+def test_product_str():
+    p = Product("Яблоко", "Красное", 80, 15)
+    assert str(p) == "Яблоко, 80 руб. Остаток: 15 шт."
+
+
+def test_product_str_with_float_price():
+    p = Product("Банан", "Жёлтый", 1.2, 10)
+    # Python сам форматирует float, но формат должен совпадать
+    assert "Банан, 1.2 руб. Остаток: 10 шт." in str(p)
+
+
+# --- Задание: __add__ для Product ---
+
+def test_product_add_returns_total_cost():
+    a = Product("Товар A", "A", 100, 10)  # 100 * 10 = 1000
+    b = Product("Товар B", "B", 200, 2)   # 200 * 2 = 400
+    result = a + b
+    assert result == 1400
+
+
+def test_product_add_with_same_product():
+    p1 = Product("Яблоки", "Я", 50, 3)     # 150
+    p2 = Product("Груши", "Г", 30, 4)      # 120
+    assert p1 + p2 == 270
+
+
+def test_product_add_not_implemented_for_non_product():
+    p = Product("Тест", "T", 10, 5)
+    with pytest.raises(TypeError):
+        _ = p + "не продукт"
+
+
+# --- Задание: __str__ для Category и общий подсчёт количества ---
+
+def test_category_str_empty():
+    c = Category("Пусто", "Ничего нет", [])
+    assert str(c) == "Пусто, количество продуктов: 0 шт."
+
+
+def test_category_str_with_products():
+    p1 = Product("Яблоко", "Кр", 80, 15)   # 15
+    p2 = Product("Банан", "Ж", 50, 30)     # 30
+    c = Category("Фрукты", "Все фрукты", [p1, p2])
+    assert str(c) == "Фрукты, количество продуктов: 45 шт."
+
+
+# --- Оптимизация геттера products через str(product) ---
+
+def test_category_products_uses_str():
+    p1 = Product("Яблоко", "Кр", 80, 15)
+    p2 = Product("Банан", "Ж", 50, 30)
+    c = Category("Фрукты", "Ф", [p1, p2])
+    output = c.products
+    assert "Яблоко, 80 руб. Остаток: 15 шт." in output
+    assert "Банан, 50 руб. Остаток: 30 шт." in output

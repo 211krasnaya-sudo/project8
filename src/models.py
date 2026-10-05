@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 from typing import List
 
 
@@ -13,38 +12,44 @@ class Product:
     ) -> None:
         self.name = name
         self.description = description
-        self.__price = price  # приватный атрибут цены
+        self.__price = price
         self.quantity = quantity
 
     @property
     def price(self) -> float:
-        """Геттер цены."""
         return self.__price
 
     @price.setter
     def price(self, new_price: float) -> None:
-        """Сеттер цены с проверкой."""
         if new_price <= 0:
             print("Цена не должна быть нулевая или отрицательная")
             return
-        # Доп. задание: подтверждение при понижении цены
         if new_price < self.__price:
             answer = input(f"Цена снижается с {self.__price} до {new_price}. Подтвердите (y/n): ")
             if answer.lower() != "y":
                 return
         self.__price = new_price
 
+    def total_cost(self) -> float:
+        """Вспомогательный метод: цена * количество."""
+        return self.price * self.quantity
+
+    def __str__(self) -> str:
+        # Формат: Название продукта, X руб. Остаток: X шт.
+        return f"{self.name}, {self.price} руб. Остаток: {self.quantity} шт."
+
+    def __add__(self, other: "Product") -> float:
+        """Сложение двух продуктов: сумма их полной стоимости (цена × количество)."""
+        if not isinstance(other, Product):
+            return NotImplemented
+        return self.total_cost() + other.total_cost()
+
     @classmethod
     def new_product(
-            cls,
-            data: dict,
-            products_list: List[Product] | None = None,
+        cls,
+        data: dict,
+        products_list: List[Product] | None = None,
     ) -> Product:
-        """Создаёт объект Product из словаря.
-
-        Задание: если товар с таким именем уже есть в products_list,
-        складывает количество и выбирает более высокую цену.
-        """
         name = data.get("name")
         if products_list:
             for product in products_list:
@@ -63,7 +68,6 @@ class Product:
 
 
 class Category:
-    # Атрибуты класса: общие для всех объектов
     category_count: int = 0
     product_count: int = 0
 
@@ -75,21 +79,26 @@ class Category:
     ) -> None:
         self.name = name
         self.description = description
-        self.__products = products if products else []  # приватный атрибут
+        self.__products = products if products else []
 
-        # Увеличиваем счётчики
         Category.category_count += 1
         Category.product_count += len(self.__products)
 
     def add_product(self, product: Product) -> None:
-        """Добавляет продукт в приватный список и увеличивает счётчик."""
         self.__products.append(product)
         Category.product_count += 1
 
     @property
     def products(self) -> str:
-        """Геттер: возвращает строку со всеми продуктами."""
-        result = ""
-        for product in self.__products:
-            result += f"{product.name}, {product.price} руб. Остаток: {product.quantity} шт.\n"
-        return result
+        """Геттер: возвращает строку со всеми продуктами (используя __str__)."""
+        lines = [str(p) for p in self.__products]
+        return "\n".join(lines) + ("\n" if lines else "")
+
+    def total_quantity(self) -> int:
+        """Общее количество товаров на складе в категории."""
+        return sum(p.quantity for p in self.__products)
+
+    def __str__(self) -> str:
+        # Формат: Название категории, количество продуктов: X шт.
+        qty = self.total_quantity()
+        return f"{self.name}, количество продуктов: {qty} шт."
