@@ -1,5 +1,5 @@
 import pytest
-from models import Product, Category
+from models import Product, Category, Smartphone, LawnGrass
 
 
 def test_product_initialization():
@@ -231,3 +231,97 @@ def test_category_products_uses_str():
     output = c.products
     assert "Яблоко, 80 руб. Остаток: 15 шт." in output
     assert "Банан, 50 руб. Остаток: 30 шт." in output
+
+# --- Задание: классы-наследники Smartphone и LawnGrass ---
+
+def test_smartphone_creation():
+    s = Smartphone(
+        name="iPhone",
+        description="Флагман",
+        price=1000,
+        quantity=5,
+        efficiency=9.5,
+        model="15 Pro",
+        memory=256,
+        color="серый",
+    )
+    assert s.name == "iPhone"
+    assert s.model == "15 Pro"
+    assert s.memory == 256
+    assert "Смартфон" in str(s)
+
+
+def test_lawn_grass_creation():
+    g = LawnGrass(
+        name="Газонная трава",
+        description="Для дачи",
+        price=50,
+        quantity=10,
+        country="Россия",
+        germination_period=7,
+        color="зелёный",
+    )
+    assert g.country == "Россия"
+    assert g.germination_period == 7
+    assert "Трава" in str(g)
+
+
+# --- Задание: ограничение сложения через type() ---
+
+def test_product_add_same_class():
+    p1 = Product("Товар", "T", 10, 5)
+    p2 = Product("Товар 2", "T2", 20, 3)
+    result = p1 + p2
+    assert result == (10 * 5) + (20 * 3)  # 50 + 60 = 110
+
+
+def test_smartphone_add_same_class():
+    s1 = Smartphone("iPhone A", "A", 1000, 2, 9.0, "14", 128, "чёрный")
+    s2 = Smartphone("iPhone B", "B", 1100, 1, 9.2, "15", 256, "белый")
+    result = s1 + s2
+    # 1000*2 + 1100*1 = 2000 + 1100 = 3100
+    assert result == 3100
+
+
+def test_add_different_classes_raises_type_error():
+    s = Smartphone("iPhone", "A", 1000, 1, 9.0, "14", 128, "чёрный")
+    g = LawnGrass("Трава", "B", 50, 10, "Россия", 7, "зелёный")
+    import pytest
+    with pytest.raises(TypeError):
+        _ = s + g
+
+
+def test_add_non_product_raises_type_error():
+    p = Product("Товар", "T", 10, 5)
+    import pytest
+    with pytest.raises(TypeError):
+        _ = p + "строка"
+
+
+# --- Задание: защита add_product через isinstance ---
+
+def test_category_add_product_valid():
+    c = Category("Электроника", "Всё для дома", [])
+    p = Product("Наушники", "Хорошие", 200, 10)
+    c.add_product(p)
+    assert len(c._Category__products) == 1
+
+
+def test_category_add_smartphone_valid():
+    c = Category("Телефоны", "Смартфоны", [])
+    s = Smartphone("iPhone", "Флагман", 1000, 2, 9.0, "15", 256, "серый")
+    c.add_product(s)
+    assert len(c._Category__products) == 1
+
+
+def test_category_add_invalid_object_raises_type_error():
+    c = Category("Пусто", "Ничего", [])
+    import pytest
+    with pytest.raises(TypeError):
+        c.add_product("не продукт")
+
+
+def test_category_init_rejects_invalid_objects():
+    import pytest
+    with pytest.raises(TypeError):
+        Category("Пусто", "Ничего", ["не продукт"])
