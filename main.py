@@ -1,6 +1,6 @@
 """Проверочный модуль для демонстрации работы классов Product и Category."""
 
-from models import Product, Category
+from models import Category, Product
 
 
 def main():
@@ -44,7 +44,7 @@ def main():
     product1.price = 0
 
     # Проверка счётчиков
-    print(f"\n=== Счётчики ===")
+    print("\n=== Счётчики ===")
     print(f"Всего категорий: {Category.category_count}")
     print(f"Всего продуктов: {Category.product_count}")
 

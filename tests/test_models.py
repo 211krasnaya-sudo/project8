@@ -1,5 +1,6 @@
 import pytest
-from models import Product, Category, Smartphone, LawnGrass
+
+from models import BaseProduct, Category, LawnGrass, Order, Product, Smartphone
 
 
 def test_product_initialization():
@@ -46,10 +47,12 @@ def test_category_class_attributes_count_products():
     c1 = Category("Fruits", "Fruits", [p1, p2])
     c2 = Category("Vegetables", "Veg", [p3])
 
+    assert c1 + c2 == 20.0
     assert Category.product_count == 3
 
 
-# ─── Задание 1: приватный атрибут products и метод add_product ───
+# --- Задание 1: приватный атрибут products и метод add_product ---
+
 
 def test_products_is_private():
     cat = Category("Фрукты", "Свежие фрукты", [])
@@ -78,7 +81,8 @@ def test_add_product_returns_none():
     assert result is None
 
 
-# ─── Задание 2: геттер products ───
+# --- Задание 2: геттер products ---
+
 
 def test_products_getter_returns_string():
     cat = Category("Фрукты", "Свежие", [])
@@ -102,10 +106,16 @@ def test_products_getter_format():
     assert cat.products == expected
 
 
-# ─── Задание 3: класс-метод new_product ───
+# --- Задание 3: класс-метод new_product ---
+
 
 def test_new_product_creates_instance():
-    data = {"name": "Арбуз", "description": "Сладкий", "price": 200, "quantity": 5}
+    data = {
+        "name": "Арбуз",
+        "description": "Сладкий",
+        "price": 200,
+        "quantity": 5,
+    }
     product = Product.new_product(data)
     assert isinstance(product, Product)
     assert product.name == "Арбуз"
@@ -115,7 +125,12 @@ def test_new_product_creates_instance():
 
 def test_new_product_existing_duplicate():
     existing = Product("Арбуз", "Сладкий", 200, 5)
-    data = {"name": "Арбуз", "description": "Другой", "price": 250, "quantity": 10}
+    data = {
+        "name": "Арбуз",
+        "description": "Другой",
+        "price": 250,
+        "quantity": 10,
+    }
     result = Product.new_product(data, products_list=[existing])
     assert result is existing
     assert existing.quantity == 15
@@ -124,13 +139,19 @@ def test_new_product_existing_duplicate():
 
 def test_new_product_duplicate_lower_price():
     existing = Product("Арбуз", "Сладкий", 300, 5)
-    data = {"name": "Арбуз", "description": "Другой", "price": 200, "quantity": 10}
+    data = {
+        "name": "Арбуз",
+        "description": "Другой",
+        "price": 200,
+        "quantity": 10,
+    }
     result = Product.new_product(data, products_list=[existing])
     assert result.quantity == 15
     assert result.price == 300
 
 
-# ─── Задание 4: геттер и сеттер цены ───
+# --- Задание 4: геттер и сеттер цены ---
+
 
 def test_price_getter():
     product = Product("Хлеб", "Свежий", 50, 10)
@@ -159,7 +180,8 @@ def test_price_setter_negative(capsys):
     assert "Цена не должна быть нулевая или отрицательная" in captured.out
 
 
-# ─── Доп. задание 4: подтверждение при понижении цены ───
+# --- Доп. задание 4: подтверждение при понижении цены ---
+
 
 def test_price_decrease_confirmed(monkeypatch):
     product = Product("Хлеб", "Свежий", 100, 10)
@@ -174,7 +196,9 @@ def test_price_decrease_cancelled(monkeypatch):
     product.price = 80
     assert product.price == 100
 
+
 # --- Задание: __str__ для Product ---
+
 
 def test_product_str():
     p = Product("Яблоко", "Красное", 80, 15)
@@ -183,22 +207,22 @@ def test_product_str():
 
 def test_product_str_with_float_price():
     p = Product("Банан", "Жёлтый", 1.2, 10)
-    # Python сам форматирует float, но формат должен совпадать
     assert "Банан, 1.2 руб. Остаток: 10 шт." in str(p)
 
 
 # --- Задание: __add__ для Product ---
 
+
 def test_product_add_returns_total_cost():
-    a = Product("Товар A", "A", 100, 10)  # 100 * 10 = 1000
-    b = Product("Товар B", "B", 200, 2)   # 200 * 2 = 400
+    a = Product("Товар A", "A", 100, 10)
+    b = Product("Товар B", "B", 200, 2)
     result = a + b
     assert result == 1400
 
 
 def test_product_add_with_same_product():
-    p1 = Product("Яблоки", "Я", 50, 3)     # 150
-    p2 = Product("Груши", "Г", 30, 4)      # 120
+    p1 = Product("Яблоки", "Я", 50, 3)
+    p2 = Product("Груши", "Г", 30, 4)
     assert p1 + p2 == 270
 
 
@@ -210,19 +234,21 @@ def test_product_add_not_implemented_for_non_product():
 
 # --- Задание: __str__ для Category и общий подсчёт количества ---
 
+
 def test_category_str_empty():
     c = Category("Пусто", "Ничего нет", [])
     assert str(c) == "Пусто, количество продуктов: 0 шт."
 
 
 def test_category_str_with_products():
-    p1 = Product("Яблоко", "Кр", 80, 15)   # 15
-    p2 = Product("Банан", "Ж", 50, 30)     # 30
+    p1 = Product("Яблоко", "Кр", 80, 15)
+    p2 = Product("Банан", "Ж", 50, 30)
     c = Category("Фрукты", "Все фрукты", [p1, p2])
     assert str(c) == "Фрукты, количество продуктов: 45 шт."
 
 
 # --- Оптимизация геттера products через str(product) ---
+
 
 def test_category_products_uses_str():
     p1 = Product("Яблоко", "Кр", 80, 15)
@@ -232,7 +258,9 @@ def test_category_products_uses_str():
     assert "Яблоко, 80 руб. Остаток: 15 шт." in output
     assert "Банан, 50 руб. Остаток: 30 шт." in output
 
+
 # --- Задание: классы-наследники Smartphone и LawnGrass ---
+
 
 def test_smartphone_creation():
     s = Smartphone(
@@ -268,37 +296,36 @@ def test_lawn_grass_creation():
 
 # --- Задание: ограничение сложения через type() ---
 
+
 def test_product_add_same_class():
     p1 = Product("Товар", "T", 10, 5)
     p2 = Product("Товар 2", "T2", 20, 3)
     result = p1 + p2
-    assert result == (10 * 5) + (20 * 3)  # 50 + 60 = 110
+    assert result == (10 * 5) + (20 * 3)
 
 
 def test_smartphone_add_same_class():
     s1 = Smartphone("iPhone A", "A", 1000, 2, 9.0, "14", 128, "чёрный")
     s2 = Smartphone("iPhone B", "B", 1100, 1, 9.2, "15", 256, "белый")
     result = s1 + s2
-    # 1000*2 + 1100*1 = 2000 + 1100 = 3100
     assert result == 3100
 
 
 def test_add_different_classes_raises_type_error():
     s = Smartphone("iPhone", "A", 1000, 1, 9.0, "14", 128, "чёрный")
     g = LawnGrass("Трава", "B", 50, 10, "Россия", 7, "зелёный")
-    import pytest
     with pytest.raises(TypeError):
         _ = s + g
 
 
 def test_add_non_product_raises_type_error():
     p = Product("Товар", "T", 10, 5)
-    import pytest
     with pytest.raises(TypeError):
         _ = p + "строка"
 
 
 # --- Задание: защита add_product через isinstance ---
+
 
 def test_category_add_product_valid():
     c = Category("Электроника", "Всё для дома", [])
@@ -316,12 +343,58 @@ def test_category_add_smartphone_valid():
 
 def test_category_add_invalid_object_raises_type_error():
     c = Category("Пусто", "Ничего", [])
-    import pytest
     with pytest.raises(TypeError):
         c.add_product("не продукт")
 
 
 def test_category_init_rejects_invalid_objects():
-    import pytest
     with pytest.raises(TypeError):
         Category("Пусто", "Ничего", ["не продукт"])
+
+
+def test_base_product_cannot_be_instantiated():
+    with pytest.raises(TypeError):
+        BaseProduct("Test", "Desc", 10.0, 5)
+
+
+def test_product_creation_logs_parameters(capsys):
+    p = Product("Apple", "Red", 1.2, 10)
+    captured = capsys.readouterr()
+    assert "Product('Apple', 'Red', 1.2, 10)" in captured.out
+
+
+def test_smartphone_creation_logs_parameters(capsys):
+    s = Smartphone("iPhone", "Flagship", 1000, 2, 9.5, "15", 256, "gray")
+    captured = capsys.readouterr()
+    assert "Smartphone" in captured.out
+    assert "iPhone" in captured.out
+
+
+def test_lawn_grass_creation_logs_parameters(capsys):
+    g = LawnGrass("Grass", "Green", 50, 10, "RU", 7, "green")
+    captured = capsys.readouterr()
+    assert "LawnGrass" in captured.out
+
+
+# --- Тесты для Order ---
+
+
+def test_order_creation():
+    p = Product("Apple", "Red apple", 1.2, 10)
+    order = Order(p, 3)
+    assert order.product is p
+    assert order.quantity == 3
+
+
+def test_order_calculate_total():
+    p = Product("Apple", "Red apple", 1.2, 10)
+    order = Order(p, 3)
+    # total_cost = price * quantity = 1.2 * 10 = 12.0;
+    # order total = 3 * 12.0 = 36.0
+    assert order.calculate_total() == 36.0
+
+
+def test_order_invalid_quantity():
+    p = Product("Apple", "Red apple", 1.2, 10)
+    with pytest.raises(ValueError):
+        Order(p, 0)

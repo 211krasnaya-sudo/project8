@@ -30,3 +30,13 @@ from = "src"
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
+
+[flake8]
+line-length = 79
+
+[tool.black]
+line-length = 79
+target-version = ["py314"]
+
+[tool.isort]
+line_length = 79
