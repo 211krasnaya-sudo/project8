@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from abc import ABC, abstractmethod
 from typing import Any, List
 
@@ -100,9 +98,12 @@ class Product(CreationLoggerMixin, BaseProduct, Orderable):
     def new_product(
         cls,
         data: dict,
-        products_list: List[Product] | None = None,
+         products_list: List[Product] | None = None,
     ) -> Product:
         name = data.get("name")
+        if not name:
+            raise ValueError("Поле 'name' обязательно для создания продукта")
+
         if products_list:
             for product in products_list:
                 if product.name == name:
