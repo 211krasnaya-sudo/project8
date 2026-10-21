@@ -40,3 +40,6 @@ target-version = ["py314"]
 
 [tool.isort]
 line_length = 79
+
+[tool.mypy]
+ignore_missing_imports = true

@@ -1,26 +1,26 @@
 from abc import ABC, abstractmethod
-from typing import Any, List
+from typing import List
 
 
-# 1. Сначала миксин (он ничего не требует от других классов)
+class ZeroQuantityError(Exception):
+    """Пользовательское исключение: попытка добавить
+    товар с нулевым количеством."""
+    pass
+
+
+# Миксин
 class CreationLoggerMixin:
-    """Миксин, который выводит в консоль информацию о создании объекта."""
-
     def __init__(self, *args, **kwargs):
-        # Сначала вызываем родительский __init__, чтобы инициализировать данные
+        print(f"[MIXIN] Запуск __init__ для {self.__class__.__name__}")
         super().__init__(*args, **kwargs)
-
         args_repr = ", ".join(repr(a) for a in args)
         kwargs_repr = ", ".join(f"{k}={v!r}" for k, v in kwargs.items())
         all_args = args_repr + (", " if args and kwargs else "") + kwargs_repr
-
         print(f"{self.__class__.__name__}({all_args})")
 
 
-# 2. Абстрактный базовый класс (зависит только от ABC)
+# Абстрактные классы (можно оставить, если они используются где‑то ещё)
 class BaseProduct(ABC):
-    """Абстрактный базовый класс для всех продуктов."""
-
     @abstractmethod
     def __init__(
         self, name: str, description: str, price: float, quantity: int
@@ -57,70 +57,90 @@ class BaseProduct(ABC):
         pass
 
 
-# 3. Абстрактный класс Orderable (для единого интерфейса стоимости)
 class Orderable(ABC):
     @abstractmethod
     def calculate_total(self) -> float:
         pass
 
 
-# 4. Product — теперь он видит и миксин, и BaseProduct, и Orderable
-class Product(CreationLoggerMixin, BaseProduct, Orderable):
-    """Базовый продукт, реализующий общую логику."""
+# Основной класс Product
+class Product:
+    def __init__(self, name: str, description: str,
+                 price: float, quantity: int):
+        print("[PRODUCT] Перед super()")
+        super().__init__()
+        print("[PRODUCT] После super()")
+        self.name = name
+        self.description = description
+        # Используем сеттеры — они делают валидацию
+        self.price = price
+        self.quantity = quantity
 
-    def __init__(
-        self, name: str, description: str, price: float, quantity: int
-    ):
-        super().__init__(name, description, price, quantity)
+    @property
+    def price(self) -> float:
+        return self._price
 
-    def total_cost(self) -> float:
-        return self.price * self.quantity
+    @price.setter
+    def price(self, value: float) -> None:
+        if value <= 0:
+            raise ValueError("Цена должна быть положительной")
 
-    def calculate_total(self) -> float:
-        return self.total_cost()
+        old_price = getattr(self, "_price", None)
+        if old_price is not None and value < old_price:
+            confirm = input(f"Цена снижается с {old_price} до "
+                            f"{value}. Подтвердить? (y/n): ")
+            if confirm.lower() != "y":
+                raise ValueError("Изменение цены отклонено пользователем")
+
+        self._price = value
+
+    @property
+    def quantity(self) -> int:
+        return self._quantity
+
+    @quantity.setter
+    def quantity(self, value: int) -> None:
+        if value <= 0:
+            raise ValueError("Товар с нулевым количеством не "
+                             "может быть добавлен")
+        self._quantity = value
 
     def __str__(self) -> str:
         return f"{self.name}, {self.price} руб. Остаток: {self.quantity} шт."
 
-    def __add__(self, other: Any) -> float:
-        if not isinstance(other, Product):
-            raise TypeError(
-                "Можно складывать только объекты Product и его наследников"
-            )
-        if type(self) is not type(other):
-            raise TypeError(
-                f"Нельзя складывать объекты разных классов: "
-                f"{type(self).__name__} и {type(other).__name__}"
-            )
-        return self.total_cost() + other.total_cost()
-
     @classmethod
-    def new_product(
-        cls,
-        data: dict,
-         products_list: List[Product] | None = None,
-    ) -> Product:
-        name = data.get("name")
-        if not name:
-            raise ValueError("Поле 'name' обязательно для создания продукта")
+    def new_product(cls, data: dict, products_list: list | None = None):
+        name = data["name"]
+        price = data["price"]
+        quantity = data.get("quantity", 1)
+        description = data.get("description", "")
 
         if products_list:
-            for product in products_list:
-                if product.name == name:
-                    product.quantity += data.get("quantity", 0)
-                    new_price = data.get("price", 0)
-                    if new_price > product.price:
-                        product.price = new_price
-                    return product
-        return cls(
-            name=name,
-            description=data.get("description", ""),
-            price=data.get("price", 0),
-            quantity=data.get("quantity", 0),
-        )
+            for p in products_list:
+                if p.name == name:
+                    p.price = price
+                    p.quantity = quantity
+                    return p
+
+        return cls(name, description, price, quantity)
+
+    # __add__ возвращает число (суммарную стоимость)
+    def __add__(self, other: object) -> float:
+        # Если типы разные (не точно такой же класс) — выбрасываем
+        # ыпонятную ошибку
+        if type(other) is not type(self):
+            raise TypeError("Нельзя складывать объекты разных классов")
+
+        # Возвращаем суммарную стоимость двух товаров
+        return (self.price * self.quantity) + (other.price * other.quantity)
+
+    # Для совместимости с абстрактными классами
+    # (если где‑то вызывается total_cost)
+    def total_cost(self) -> float:
+        return self.price * self.quantity
 
 
-# 5. Наследники (Smartphone, LawnGrass)
+# Наследники
 class Smartphone(Product):
     def __init__(
         self,
@@ -171,7 +191,7 @@ class LawnGrass(Product):
         )
 
 
-# 6. Класс Order
+# Класс Order
 class Order(Orderable):
     def __init__(self, product: Product, quantity: int):
         if quantity <= 0:
@@ -192,7 +212,7 @@ class Order(Orderable):
         )
 
 
-# 7. Категория (теперь тоже Orderable)
+# Категория
 class Category(Orderable):
     category_count: int = 0
     product_count: int = 0
@@ -219,13 +239,20 @@ class Category(Orderable):
         Category.product_count += len(self.__products)
 
     def add_product(self, product: Product) -> None:
+
         if not isinstance(product, Product):
             raise TypeError(
                 "В категорию можно добавлять только "
                 "объекты Product или его наследников"
             )
+
+        # 2. Теперь безопасно обращаемся к quantity
+        if product.quantity <= 0:
+            raise ZeroQuantityError(
+                "Товар с нулевым или отрицательным "
+                "количеством нельзя добавить в категорию")
+
         self.__products.append(product)
-        Category.product_count += 1
 
     @property
     def products(self) -> str:
@@ -237,6 +264,13 @@ class Category(Orderable):
 
     def calculate_total(self) -> float:
         return sum(p.total_cost() for p in self.__products)
+
+    def average_price(self) -> float:
+        products = self.__products
+        if not products:
+            return 0.0
+        total = sum(p.price for p in products)
+        return total / len(products)
 
     def __str__(self) -> str:
         qty = self.total_quantity()
