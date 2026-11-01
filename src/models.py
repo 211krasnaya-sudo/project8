@@ -1,25 +1,30 @@
+
+
 from abc import ABC, abstractmethod
-from typing import List
+from typing import List, Optional
 
 
 class ZeroQuantityError(Exception):
-    """Пользовательское исключение: попытка добавить
-    товар с нулевым количеством."""
+    """Пользовательское исключение: попытка добавить товар
+    с нулевым количеством."""
     pass
 
 
-# Миксин
+# --- Миксин (ОБЯЗАТЕЛЬНО первым в файле) ---
 class CreationLoggerMixin:
+    """Миксин: ставит флаг инициализации и выводит лог ДО
+    основной инициализации."""
+
     def __init__(self, *args, **kwargs):
-        print(f"[MIXIN] Запуск __init__ для {self.__class__.__name__}")
+        # 1. Ставим флаг — это гарантия, что миксин отработал
+        self._mixin_initialized = True
+        print("[MIXIN] Logger activated!")
+
+        # 2. Передаём управление дальше по цепочке MRO
         super().__init__(*args, **kwargs)
-        args_repr = ", ".join(repr(a) for a in args)
-        kwargs_repr = ", ".join(f"{k}={v!r}" for k, v in kwargs.items())
-        all_args = args_repr + (", " if args and kwargs else "") + kwargs_repr
-        print(f"{self.__class__.__name__}({all_args})")
 
 
-# Абстрактные классы (можно оставить, если они используются где‑то ещё)
+# --- Абстрактный базовый класс (если используется в других местах) ---
 class BaseProduct(ABC):
     @abstractmethod
     def __init__(
@@ -28,7 +33,7 @@ class BaseProduct(ABC):
         self.name = name
         self.description = description
         self.__price = price
-        self.quantity = quantity
+        self._quantity = quantity
 
     @property
     def price(self) -> float:
@@ -37,15 +42,7 @@ class BaseProduct(ABC):
     @price.setter
     def price(self, new_price: float) -> None:
         if new_price <= 0:
-            print("Цена не должна быть нулевая или отрицательная")
-            return
-        if new_price < self.__price:
-            answer = input(
-                f"Цена снижается с {self.__price} до {new_price}. "
-                f"Подтвердите (y/n): "
-            )
-            if answer.lower() != "y":
-                return
+            raise ValueError("Цена должна быть положительной")
         self.__price = new_price
 
     @abstractmethod
@@ -56,6 +53,11 @@ class BaseProduct(ABC):
     def __str__(self) -> str:
         pass
 
+    def __add__(self, other):
+        if not isinstance(other, self.__class__):
+            raise TypeError("Нельзя складывать объекты разных классов")
+        return self.total_cost() + other.total_cost()
+
 
 class Orderable(ABC):
     @abstractmethod
@@ -63,84 +65,83 @@ class Orderable(ABC):
         pass
 
 
-# Основной класс Product
-class Product:
-    def __init__(self, name: str, description: str,
-                 price: float, quantity: int):
-        print("[PRODUCT] Перед super()")
+# --- Основной класс Product ---
+class Product(CreationLoggerMixin):
+    """Товар: проверка количества строго в __init__,
+    сеттер — как дополнительная защита."""
+
+    def __init__(self, name: str, description: str, price: float,
+                 quantity: int):
+
         super().__init__()
-        print("[PRODUCT] После super()")
+
+        # ПРОВЕРКА КОЛИЧЕСТВА: сразу при создании
+        if quantity <= 0:
+            raise ValueError("Товар с нулевым количеством не "
+                             "может быть добавлен")
+
+        # Сохраняем данные
         self.name = name
         self.description = description
-        # Используем сеттеры — они делают валидацию
-        self.price = price
-        self.quantity = quantity
+        self._quantity = quantity
+        self.price = price  # используем сеттер для валидации цены
 
-    @property
-    def price(self) -> float:
-        return self._price
+    @classmethod
+    def new_product(cls, data: dict,
+                    products_list: Optional[List['Product']] = None):
+        """
+        Фабрика для создания/обновления продукта.
+        Если в products_list есть товар с таким же именем — обновляем его.
+        Иначе создаём новый.
+        """
+        # Ищем существующий продукт по имени
+        if products_list:
+            for existing in products_list:
+                if existing.name == data["name"]:
+                    # Обновляем поля
+                    existing.price = data.get("price", existing.price)
+                    existing.quantity = data.get("quantity", existing.quantity)
+                    return existing
 
-    @price.setter
-    def price(self, value: float) -> None:
-        if value <= 0:
-            raise ValueError("Цена должна быть положительной")
-
-        old_price = getattr(self, "_price", None)
-        if old_price is not None and value < old_price:
-            confirm = input(f"Цена снижается с {old_price} до "
-                            f"{value}. Подтвердить? (y/n): ")
-            if confirm.lower() != "y":
-                raise ValueError("Изменение цены отклонено пользователем")
-
-        self._price = value
+        # Создаём новый
+        return cls(
+            name=data["name"],
+            description=data.get("description", ""),
+            price=data["price"],
+            quantity=data["quantity"],
+        )
 
     @property
     def quantity(self) -> int:
         return self._quantity
 
     @quantity.setter
-    def quantity(self, value: int) -> None:
+    def quantity(self, value: int):
         if value <= 0:
             raise ValueError("Товар с нулевым количеством не "
                              "может быть добавлен")
         self._quantity = value
 
-    def __str__(self) -> str:
-        return f"{self.name}, {self.price} руб. Остаток: {self.quantity} шт."
+    @property
+    def price(self) -> float:
+        # Безопасное получение, если вдруг сеттер не сработал
+        return getattr(self, '_price', 0.0)
 
-    @classmethod
-    def new_product(cls, data: dict, products_list: list | None = None):
-        name = data["name"]
-        price = data["price"]
-        quantity = data.get("quantity", 1)
-        description = data.get("description", "")
+    @price.setter
+    def price(self, value: float):
+        if value < 0:
+            raise ValueError("Цена не может быть отрицательной")
+        setattr(self, '_price', value)
 
-        if products_list:
-            for p in products_list:
-                if p.name == name:
-                    p.price = price
-                    p.quantity = quantity
-                    return p
-
-        return cls(name, description, price, quantity)
-
-    # __add__ возвращает число (суммарную стоимость)
-    def __add__(self, other: object) -> float:
-        # Если типы разные (не точно такой же класс) — выбрасываем
-        # ыпонятную ошибку
-        if type(other) is not type(self):
-            raise TypeError("Нельзя складывать объекты разных классов")
-
-        # Возвращаем суммарную стоимость двух товаров
-        return (self.price * self.quantity) + (other.price * other.quantity)
-
-    # Для совместимости с абстрактными классами
-    # (если где‑то вызывается total_cost)
     def total_cost(self) -> float:
         return self.price * self.quantity
 
+    def __str__(self) -> str:
+        return (f"{self.name}, {self.price} руб. "
+                f"Остаток: {self.quantity} шт.")
 
-# Наследники
+
+# --- Наследники ---
 class Smartphone(Product):
     def __init__(
         self,
@@ -166,6 +167,11 @@ class Smartphone(Product):
             f"память {self.memory} ГБ, цвет {self.color}"
         )
 
+    def __add__(self, other: 'Smartphone') -> float:
+        if not isinstance(other, Smartphone):
+            raise TypeError("Нельзя складывать объекты разных классов")
+        return self.total_cost() + other.total_cost()
+
 
 class LawnGrass(Product):
     def __init__(
@@ -190,14 +196,18 @@ class LawnGrass(Product):
             f"прорастание {self.germination_period} дней, цвет {self.color}"
         )
 
+    def __add__(self, other: 'LawnGrass') -> float:
+        if not isinstance(other, LawnGrass):
+            raise TypeError("Нельзя складывать объекты разных классов")
+        return self.total_cost() + other.total_cost()
 
-# Класс Order
+
+# --- Класс Order ---
 class Order(Orderable):
-    def __init__(self, product: Product, quantity: int):
+    def __init__(self, product: Product, quantity: int) -> None:
         if quantity <= 0:
-            raise ValueError(
-                "Количество товара в заказе должно быть положительным"
-            )
+            raise ValueError("Количество товара в заказе "
+                             "должно быть положительным")
         self.product = product
         self.quantity = quantity
 
@@ -212,7 +222,7 @@ class Order(Orderable):
         )
 
 
-# Категория
+# --- Категория ---
 class Category(Orderable):
     category_count: int = 0
     product_count: int = 0
@@ -229,8 +239,8 @@ class Category(Orderable):
         for p in products:
             if not isinstance(p, Product):
                 raise TypeError(
-                    "В категорию можно добавлять только "
-                    "объекты Product или его наследников"
+                    "В категорию можно добавлять только объекты"
+                    " Product или его наследников"
                 )
 
         self.__products = products if products else []
@@ -239,25 +249,23 @@ class Category(Orderable):
         Category.product_count += len(self.__products)
 
     def add_product(self, product: Product) -> None:
-
         if not isinstance(product, Product):
             raise TypeError(
-                "В категорию можно добавлять только "
-                "объекты Product или его наследников"
+                "В категорию можно добавлять только объекты "
+                "Product или его наследников"
             )
 
-        # 2. Теперь безопасно обращаемся к quantity
         if product.quantity <= 0:
             raise ZeroQuantityError(
-                "Товар с нулевым или отрицательным "
-                "количеством нельзя добавить в категорию")
+                "Товар с нулевым или отрицательным количеством "
+                "нельзя добавить в категорию"
+            )
 
         self.__products.append(product)
 
     @property
-    def products(self) -> str:
-        lines = [str(p) for p in self.__products]
-        return "\n".join(lines) + ("\n" if lines else "")
+    def products(self) -> List[Product]:
+        return self.__products
 
     def total_quantity(self) -> int:
         return sum(p.quantity for p in self.__products)
